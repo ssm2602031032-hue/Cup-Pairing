@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>水杯配对</title>
+  <style>
+    :root{--ink:#273044;--muted:#7b8498;--panel:rgba(255,255,255,.76);--shadow:0 18px 46px rgba(52,61,92,.16)}
+    *{box-sizing:border-box} body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:linear-gradient(135deg,#fff5e8,#e7f5ff 55%,#efe9ff);display:grid;place-items:center;padding:24px}
+    main{width:min(690px,100%);padding:34px 28px 30px;background:var(--panel);border:1px solid rgba(255,255,255,.9);border-radius:30px;box-shadow:var(--shadow);backdrop-filter:blur(14px)}
+    header{text-align:center;margin-bottom:25px} h1{margin:0 0 8px;font-size:clamp(27px,5vw,39px);letter-spacing:.08em} .subtitle{margin:0;color:var(--muted);font-size:14px}
+    .stats{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:20px 0 25px}.stat{min-width:110px;padding:10px 15px;text-align:center;background:rgba(255,255,255,.7);border-radius:15px}.stat small{display:block;color:var(--muted);font-size:12px}.stat b{font-size:20px;color:#444f73}
+    .board{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;perspective:900px}.card{height:144px;border:0;background:none;padding:0;cursor:pointer;position:relative;transform-style:preserve-3d;transition:transform .52s cubic-bezier(.22,.7,.25,1);outline:none}.card:focus-visible{box-shadow:0 0 0 4px #84b9ff;border-radius:18px}.card.flipped,.card.matched{transform:rotateY(180deg)}.face{position:absolute;inset:0;border-radius:19px;backface-visibility:hidden;display:grid;place-items:center;box-shadow:0 9px 20px rgba(41,56,98,.15)}.back{background:linear-gradient(145deg,#7181c2,#4b5e9b);overflow:hidden}.back:before,.back:after{content:"";position:absolute;border:2px solid rgba(255,255,255,.25);border-radius:50%}.back:before{width:100px;height:100px}.back:after{width:56px;height:56px}.front{transform:rotateY(180deg);background:#fff}.cup{width:61px;height:77px;border-radius:9px 9px 18px 18px;position:relative;box-shadow:inset -7px 0 0 rgba(255,255,255,.24),0 6px 7px rgba(20,30,50,.14)}.cup:before{content:"";position:absolute;left:-5px;right:-5px;top:-6px;height:15px;border-radius:50%;background:rgba(255,255,255,.52);box-shadow:inset 0 -3px 0 rgba(255,255,255,.4)}.cup:after{content:"";position:absolute;right:-16px;top:15px;width:20px;height:32px;border:7px solid currentColor;border-left:0;border-radius:0 18px 18px 0;opacity:.55}.red{background:#f06b72;color:#d74d5a}.blue{background:#5ba8ec;color:#3d8cd0}.yellow{background:#f5c44e;color:#e1a522}.green{background:#62c99b;color:#45ad82}
+    .card.matched .front{box-shadow:0 0 0 3px #73d8ac,0 9px 20px rgba(41,56,98,.12)}.actions{text-align:center;margin-top:28px}.restart{border:0;border-radius:999px;padding:12px 24px;background:#4d5ea0;color:#fff;font-size:15px;font-weight:650;cursor:pointer;box-shadow:0 7px 14px rgba(60,76,145,.25);transition:transform .2s,background .2s}.restart:hover{background:#3f4f8d;transform:translateY(-2px)}
+    .message{min-height:24px;margin-top:14px;text-align:center;color:#59647e;font-size:14px}.win{color:#3f986f;font-weight:700}
+    @media (max-width:560px){main{padding:27px 17px 24px;border-radius:24px}.board{gap:10px}.card{height:116px}.cup{transform:scale(.84)}.stats{gap:7px}.stat{min-width:92px;padding:8px 9px}}
+  </style>
+</head>
+<body>
+<main>
+  <header><h1>水杯配对</h1><p class="subtitle">翻开水杯，找到每一种颜色的另一半吧</p></header>
+  <div class="stats" aria-live="polite"><div class="stat"><small>步数</small><b id="moves">0</b></div><div class="stat"><small>已配对</small><b><span id="pairs">0</span> / 4</b></div><div class="stat"><small>用时</small><b><span id="time">0</span>s</b></div></div>
+  <section class="board" id="board" aria-label="水杯卡牌"></section>
+  <div class="actions"><button class="restart" id="restart">重新洗牌</button><div class="message" id="message">点击任意两个水杯开始</div></div>
+</main>
+<script>
+  const colors=[['red','红色'],['blue','蓝色'],['yellow','黄色'],['green','绿色']];
+  const board=document.querySelector('#board'), movesEl=document.querySelector('#moves'), pairsEl=document.querySelector('#pairs'), timeEl=document.querySelector('#time'), msg=document.querySelector('#message');
+  let deck=[],first=null,second=null,locked=false,moves=0,pairs=0,seconds=0,timer=null;
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+  function start(){clearInterval(timer);deck=shuffle(colors.flatMap(([key,label],id)=>[{key,label,id},{key,label,id}]));first=second=null;locked=false;moves=pairs=seconds=0;movesEl.textContent=0;pairsEl.textContent=0;timeEl.textContent=0;msg.className='message';msg.textContent='点击任意两个水杯开始';board.innerHTML='';deck.forEach((item,i)=>{const card=document.createElement('button');card.className='card';card.dataset.id=item.id;card.setAttribute('aria-label','隐藏的水杯');card.innerHTML=`<span class="face back" aria-hidden="true"></span><span class="face front"><span class="cup ${item.key}" aria-label="${item.label}水杯"></span></span>`;card.onclick=()=>flip(card,item);board.append(card)});}
+  function flip(card,item){if(locked||card.classList.contains('flipped')||card.classList.contains('matched'))return;if(!timer)timer=setInterval(()=>timeEl.textContent=++seconds,1000);card.classList.add('flipped');card.setAttribute('aria-label',item.label+'水杯');if(!first){first={card,item};return}second={card,item};moves++;movesEl.textContent=moves;locked=true;if(first.item.id===second.item.id){setTimeout(()=>{first.card.classList.add('matched');second.card.classList.add('matched');first.card.disabled=second.card.disabled=true;pairs++;pairsEl.textContent=pairs;resetTurn();if(pairs===4){clearInterval(timer);msg.className='message win';msg.textContent=`恭喜完成！共用 ${moves} 步，用时 ${seconds} 秒`; }else msg.textContent='配对成功，继续寻找！'},400)}else{msg.textContent='颜色不同，再试一次';setTimeout(()=>{first.card.classList.remove('flipped');second.card.classList.remove('flipped');first.card.setAttribute('aria-label','隐藏的水杯');second.card.setAttribute('aria-label','隐藏的水杯');resetTurn()},850)}}
+  function resetTurn(){first=second=null;locked=false} document.querySelector('#restart').onclick=start; start();
+</script>
+</body>
+</html>
